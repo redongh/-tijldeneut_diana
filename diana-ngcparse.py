@@ -36,22 +36,29 @@ def parseProtectors(sPath, boolVerbose = False):
     for protector in os.listdir(sPath):
         ## name, provider, keyname, timestamp, data
         arrProtector = []
-        arrProtector.append(protector)
-        with open(os.path.join(sPath, protector, '1.dat'), 'rb') as f: arrProtector.append(f.read().decode('utf16').strip('\x00'))
-        try:
-            with open(os.path.join(sPath, protector, '2.dat'), 'rb') as f: arrProtector.append(f.read().decode('utf16').strip('\x00'))
-        except:
-            arrProtector.append('')
-            print('[-] Protector "' + protector + '" is probably being stored in the TPM chip.')
-        with open(os.path.join(sPath, protector, '9.dat'), 'rb') as f: arrProtector.append(parseTimestamp(f.read()))
-        with open(os.path.join(sPath, protector, '15.dat'), 'rb') as f: arrProtector.append(f.read())
-        arrProtectors.append(arrProtector)
-        if boolVerbose:
-            print('= ' + arrProtector[0] + ' =')
-            print('[+] Provider  : {}'.format(arrProtector[1]))
-            print('[+] Key Name  : {} (Probably PIN GUID)'.format(arrProtector[2]))
-            print('[+] Timestamp : {}'.format(arrProtector[3]))
-            print('[+] Data Size : {} byte(s)\n'.format(len(arrProtector[4])))
+        if os.path.isfile( os.path.join(sPath, protector, '1.dat') ) and \
+             os.path.isfile( os.path.join(sPath, protector, '9.dat') ) and \
+             os.path.isfile( os.path.join(sPath, protector, '15.dat') ):
+            arrProtector.append(protector)
+            with open(os.path.join(sPath, protector, '1.dat'), 'rb') as f:
+                arrProtector.append(f.read().decode('utf16').strip('\x00'))
+            try:
+                with open(os.path.join(sPath, protector, '2.dat'), 'rb') as f:
+                    arrProtector.append(f.read().decode('utf16').strip('\x00'))
+            except:
+                arrProtector.append('')
+                print('[-] Protector "' + protector + '" is probably being stored in the TPM chip.')
+            with open(os.path.join(sPath, protector, '9.dat'), 'rb') as f: arrProtector.append(parseTimestamp(f.read()))
+            with open(os.path.join(sPath, protector, '15.dat'), 'rb') as f: arrProtector.append(f.read())
+            arrProtectors.append(arrProtector)
+            if boolVerbose:
+                print('= ' + arrProtector[0] + ' =')
+                print('[+] Provider  : {}'.format(arrProtector[1]))
+                print('[+] Key Name  : {} (Probably PIN GUID)'.format(arrProtector[2]))
+                print('[+] Timestamp : {}'.format(arrProtector[3]))
+                print('[+] Data Size : {} byte(s)\n'.format(len(arrProtector[4])))
+        else:
+            print(f'= {protector} (this incomplete protector folder is SKIPPED!) =\n')
     return arrProtectors
 
 def parseItems(sPath, boolVerbose = False):
@@ -83,18 +90,18 @@ def main(sNGCFolder, boolOutput = True):
     arrResults = []
     for sGUID in arrGUIDs:
         with open(os.path.join(sNGCFolder, sGUID, '1.dat'), 'rb') as f: sUserSID = f.read().decode('UTF16').strip('\x00')
-        try: 
+        try:
             with open(os.path.join(sNGCFolder, sGUID, '7.dat'), 'rb') as f: sMainProvider = f.read().decode('UTF16').strip('\x00')
-        except: 
+        except:
             exit('[-] Failed, are you running as System? (not Admin)')
-        
+
         if boolOutput:
             print('[+] NGC GUID      : ' + sGUID)
             print('[+] User SID      : ' + sUserSID)
             print('[+] Main Provider : ' + sMainProvider)
-        
+
             print('\n== Protectors ==')
-        
+
         arrNGCData = (sGUID, sUserSID, sMainProvider)
         arrProtectors = parseProtectors(os.path.join(sNGCFolder, sGUID, 'Protectors'), boolOutput)
 
@@ -102,22 +109,22 @@ def main(sNGCFolder, boolOutput = True):
         arrItems = parseItems(os.path.join(sNGCFolder, sGUID), boolOutput)
         arrResults.append((arrNGCData, arrProtectors, arrItems))
         if boolOutput: print('=' * 50)
-    
+
     ## Optionally print stuff needed for NGC Windows Hello PIN DECRYPT
-    if boolOutput: 
+    if boolOutput:
         for arrResult in arrResults:
             sGUID1 = ''
             sRID = ''
             bInputData = b''
             for arrProtector in arrResult[1]:
-                if arrProtector[1] == 'Microsoft Software Key Storage Provider' or 'Microsoft Platform Crypto Provider': 
+                if arrProtector[1] == 'Microsoft Software Key Storage Provider' or 'Microsoft Platform Crypto Provider':
                     sGUID1 = arrProtector[2]
                     bInputData = arrProtector[4]
             sRID = arrResult[0][1].split('-')[len(arrResult[0][1].split('-'))-1]
             if sGUID1 == '': print('[+] MS Platform Crypto Provider detected, PIN is in TPM chip')
             else: print('[+] PIN GUID for user with SID {} : {}'.format(arrResult[0][1], sGUID1))
         print('[!] Hint: run ngccryptokeysdec to decrypt the password and/or bruteforce the Windows HELLO PIN')
-        
+
     return arrResults
 
 if __name__ == '__main__':
@@ -129,9 +136,9 @@ if __name__ == '__main__':
         'Watch out: Folder path above requires SYSTEM privileges')
 
     parser = optparse.OptionParser(usage=usage)
-    
+
     (options, args) = parser.parse_args()
     check_parameters(options, args)
-   
+
     main(args[0])
-    
+
