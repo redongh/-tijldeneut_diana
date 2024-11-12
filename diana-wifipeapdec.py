@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright 2015, Francesco "dfirfpi" Picasso <francesco.picasso@gmail.com>
